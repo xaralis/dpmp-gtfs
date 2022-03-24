@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "dpmp-gtfs"
+version = "0.1.0"
+description = ""
+authors = ["xaralis <filip.varecha@fragaria.cz>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+gtfs-realtime-bindings = "^0.0.7"
+requests = "^2.27.1"
+pytz = "^2022.1"
+
+[tool.poetry.dev-dependencies]
+black = "^22.1.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
