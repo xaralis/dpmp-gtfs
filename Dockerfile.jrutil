@@ -1,0 +1,27 @@
+FROM mcr.microsoft.com/dotnet/sdk:5.0-bullseye-slim
+
+ARG JRUTIL_SHA=72518ef6
+ARG WEBSHARPER_SHA=a1d9ab63
+ARG DOCOPTFS_SHA=a42f2c29
+
+RUN apt-get update && \
+    apt-get install -y git-core && \
+    git clone https://gitlab.com/dvdkon/jrutil.git && \
+    cd jrutil && \
+    git checkout ${JRUTIL_SHA} && \
+    cd thirdparty && \
+    git clone https://gitlab.com/dvdkon/websharper.echarts.git WebSharper.ECharts && \
+    cd WebSharper.ECharts && \
+    git checkout ${WEBSHARPER_SHA} && \
+    cd .. && \
+    git clone https://github.com/dvdkon/docopt.fs.git && \
+    cd docopt.fs && \
+    git checkout ${DOCOPTFS_SHA} && \
+    cd ../.. && \
+    # Only build jrutil-multitool as not all projects are actually working.
+    dotnet build jrutil-multitool && \
+    cd jrutil-multitool
+
+WORKDIR "/jrutil/jrutil-multitool"
+
+CMD ["dotnet", "run", "--"]
