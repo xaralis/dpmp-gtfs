@@ -1,36 +1,54 @@
 # GTFS and GTFS Realtime feed generator toolkit for DPMP
 
-This is just a bunch of utils to create and maintain GTFS and GTFS feeds
-for Pardubice public transportation.
+Toolkit to create and maintain [GTFS](https://gtfs.org/schedule/) and
+[GTFS Realtime](https://gtfs.org/realtime/) feeds for Pardubice public
+transportation.
 
 It aims to provide a bridge between (semi-)propriatary data formats and
 standard transit open data for publication to Google as well as general
 analysis.
 
-This is still a work in progress. I aim to bundle all this inside Docker to make
-it a one-liner. Until then, you'll have to proceed manually.
+*Note*: still a work in progress.
 
+## How this works?
 
-## Prerequisites
+This tool bundle builds beforementioned feeds out of [CIS data](https://portal.cisjr.cz), bus stop geo coordinates
+in DPMP proprietary format and also REST API that provides latest vehicle locations and deviations from the schedule.
 
-1. Acquire transit agency data in a JDF format (accepted by CIS). Extract it and put it somewhere on your filesystem
-   wrapped in `jdf/1/` so that you have files like `jdf/1/Spoje.txt`.
-2. Acquire stop location geodata in raw form (`STANICE.ZS`).
+The static data (GTFS) needs to be updated whenever bus schedule changes. Not so often.
 
-## Running using Docker
+The realtime data (GTFS - Realtime) needs to be updates as often as possible so that feed consumers (and ultimately
+passengers) don't end up with stale info. Ideally, you should rebuilt the feed with same frequency buses send their
+location updates. At the time of this writing, this would be something like every 15 seconds.
 
-If you don't want to hassle with installing .NET or Python, you can run the tools using Docker only. It is the
-recommended way to use this.
+General workflow is following:
 
-### Creating a GTFS feed
+1. Create GTFS feed out of CIS data and bus stop coords. Update it when schedule changes.
+2. Create & frequently update GTFS-Realtime feed using GTFS feed and realtime API as input.
+
+Both feeds have to be exposed publicly to let consumers grab them at will. Exposing the feeds is out of scope of this
+toolkit but should be fairly simple using [NGINX](https://www.nginx.com) for example.
+
+In order to integrate Google, an agency representative has to register the feed URLs as well.
+
+To start using this tool bundle, you'll first need to get hold of following stuff:
+
+- Transit agency data in a [JDF format](https://www.dpmo.cz/doc/cz/jdf-1.10.pdf) (accepted by CIS). Extract it and put
+  it somewhere on your filesystem wrapped in `jdf/1/` so that you have files like `jdf/1/Spoje.txt`.
+- Stop location geodata in raw form (`STANICE.ZS`).
+- An API key for the MHD REST API. Ask DPMP representatives to provide you with one.
+
+## Using Docker
+
+If you don't want to hassle with installing .NET or Python, there are prebuilt Docker images you can use easily.
 
 1. Copy over JDF source and `STANICE.ZS` to a single parent directory, let' say `/tmp/data` and `cd` into it:
 
     ```sh
-    mkdir -p /tmp/data && cd /tmp/data
+    cd /tmp/data
     ```
 
-1. Prepare stop location CSV to feed `jrutil` later on:
+2. Prepare stop location CSV to feed `jrutil` later on:
 
     ```sh
     docker run -v $PWD:/data xaralis/dpmp-gtfs-bridge:latest ./convert-stop-locations.sh  --src_file /data/STANICE.ZS --dest_file /data/stop_locations.csv
@@ -38,48 +56,44 @@ recommended way to use this.
 
     This will create `/tmp/data/stop_locations.csv`.
 
-2. Convert JDF feed to GTFS using `jrutil`:
+3. Convert JDF feed to GTFS using `jrutil`:
 
     ```
     mkdir gtfs-out
     docker run -v $PWD:/data xaralis/dpmp-gtfs-jrutil:latest dotnet run -- jdf-to-gtfs --stop-coords-by-id /data/stop_locations.csv /data/jdf/1 /data/gtfs-out
     ```
 
-This will create your GTFS feed in specified location. You should re-create the feed whenever your transit schedule changes.
+    This will create your GTFS feed in `/tmp/data/gtfs-out`. You should re-run this command whenever your transi
+    schedule changes.
 
-### Maintain a GTFS Realtime feed
+4. Start GTFS Realtime daemon:
 
-This works with realtime API published by DPMP recently. It will create another feed - GTFS Realtime - that contains
-realtime transit updates such as delays and bus vehicle position geo coordinates.
+    ```sh
+    docker run -v $PWD:/data xaralis/dpmp-gtfs-bridge:latest ./start-gtfsr-generator.sh --mhd_api_key=[API_KEY] --gtfs_trips_src_file=/data/gtfs-out
+    ```
 
-In order to run the deamon that refreshes the feed, you'll need the GTFS feed from
-the preivous step already compiled. You'll also need an API key for the MHD REST API. Ask DPMP representatives to
-provide you with one.
-
-Once you have all the prerequisites at hand, simply run:
-
-```sh
-docker run -v $PWD:/data xaralis/dpmp-gtfs-bridge:latest ./start-gtfsr-generator.sh  --mhd_api_key=[API_KEY] --gtfs_trips_src_file=/data/gtfs-out
-```
-
-This will start a deamon that recreates the GTFS Realtime feed periodically. The daemon is meant to be up all the time
-as the realtime feed needs to be fresh.
+    The daemon is meant to be up all the time as the realtime feed needs to be fresh.
 
 ## Running directly
 
-### Creating a GTFS feed
-
-1. Install & build [jrutil](https://gitlab.com/dvdkon/jrutil) locally, we'll use it to convert CIS feed to GTFS. You'll also need to install .NET support on your machine, follow official docs to do so.
-2. Install this app and it's dependencies:
+1. Install & build [jrutil](https://gitlab.com/dvdkon/jrutil) locally, follow instructions at the library home page.
+   Simply put: you'll need to install .NET support (v5) on your machine and also clone linked repositories in
+   the `thirdparty` directory (refrer to `Dockerfile.jrutil` for details). Then build the `jrutil-multitool`:
 
     ```sh
+    dotnet build jrutil-multitool
+    ```
+
+2. Install this app and its dependencies:
+
+    ```sh
+    git clone git@github.com:xaralis/dpmp-gtfs.git && cd dpmp-gtfs
     poetry install
     ```
 
 3. Prepare stop location CSV to feed `jrutil` later on:
 
     ```sh
-    # Will create ./stop_locations.csv
     poetry run src/convert_stop_locations.py --src_file STANICE.ZS
     ```
 
@@ -90,28 +104,19 @@ as the realtime feed needs to be fresh.
     dotnet run -- jdf-to-gtfs --stop-coords-by-id path/to/stop_locations.csv path/to/jdf/1 path/to/gtfs/output/dir
     ```
 
-This will create your GTFS feed in specified location. You should re-create the feed whenever your transit schedule changes.
+    This will create your GTFS feed in specified location. You should re-create the feed whenever your transit
+    schedule changes.
 
-### Maintain a GTFS Realtime feed
+5. Start GTFS Realtime daemon:
 
-This works with realtime API published by DPMP recently. It will create another feed - GTFS Realtime - that contains
-realtime transit updates such as delays and bus vehicle position geo coordinates.
+    ```sh
+    cd path/to/dpmp-gtfs
+    poetry run src/generate_gtfs_realtime.py --mhd_api_key=[API_KEY] --gtfs_trips_src_file=path/to/gtfs/output/dir
+    ```
 
-In order to run the deamon that refreshes the feed, you'll need the GTFS feed from
-the preivous step already compiled. You'll also need an API key for the MHD REST API. Ask DPMP representatives to
-provide you with one.
+    The daemon is meant to be up all the time as the realtime feed needs to be fresh. Refer to further config options
+    with:
 
-Once you have all the prerequisites at hand, simply run:
-
-```sh
-poetry run src/generate_gtfs_realtime.py --mhd_api_key=[API_KEY] --gtfs_trips_src_file=path/to/gtfs/output/dir
-```
-
-This will start a deamon that recreates the GTFS Realtime feed periodically. The daemon is meant to be up all the time
-as the realtime feed needs to be fresh.
-
-Refer to further config options with:
-
-```
-poetry run src/generate_gtfs_realtime.py --help
-```
+    ```
+    poetry run src/generate_gtfs_realtime.py --help
+    ```
