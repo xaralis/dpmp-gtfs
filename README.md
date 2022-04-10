@@ -120,3 +120,19 @@ If you don't want to hassle with installing .NET or Python, there are prebuilt D
     ```
     poetry run src/generate_gtfs_realtime.py --help
     ```
+
+## Verifying GTFS feed
+
+First, create a Google Maps API key. Follow the official Google guide:
+
+https://developers.google.com/maps/documentation/maps-static/get-api-key#creating-api-keys
+
+Now you can visualise the feed using Google's `transitfeed` toolkit. I've added some basic fixes as the original
+repository is old and unmaintained. Now, assuming your previously generated GTFS feed lives at `/tmp/data/gtfs-out`,
+you can run the schedule viewer with this command:
+
+```sh
+docker run -it -v ~/tmp/data/gtfs-out:/data -p 8765:8765 xaralis/dpmp-gtfs-transitfeed:latest python schedule_viewer.py --key [API_KEY] --feed_filename /data
+```
+
+After couple seconds, this will expose the schedule viewer web app on [http://localhost:8765](http://localhost:8765).
