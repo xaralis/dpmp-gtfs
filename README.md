@@ -69,7 +69,7 @@ If you don't want to hassle with installing .NET or Python, there are prebuilt D
 4. Start GTFS Realtime daemon:
 
     ```sh
-    docker run -v $PWD:/data xaralis/dpmp-gtfs-bridge:latest ./start-gtfsr-generator.sh --mhd_api_key=[API_KEY] --gtfs_trips_src_file=/data/gtfs-out
+    docker run -it -v $PWD:/data xaralis/dpmp-gtfs-bridge:latest ./start-gtfsr-generator.sh --mhd_api_key=[API_KEY] --gtfs_trips_src_file=/data/gtfs-out/trips.txt --dest_file=/data/gtfs-out/gtfsr.pb
     ```
 
     The daemon is meant to be up all the time as the realtime feed needs to be fresh.
@@ -111,7 +111,7 @@ If you don't want to hassle with installing .NET or Python, there are prebuilt D
 
     ```sh
     cd path/to/dpmp-gtfs
-    poetry run src/generate_gtfs_realtime.py --mhd_api_key=[API_KEY] --gtfs_trips_src_file=path/to/gtfs/output/dir
+    poetry run src/generate_gtfs_realtime.py --mhd_api_key=[API_KEY] --gtfs_trips_src_file=path/to/gtfs/output/dir/trips.txt --dest_file=path/to/gtfs/output/dir//gtfsr.pb
     ```
 
     The daemon is meant to be up all the time as the realtime feed needs to be fresh. Refer to further config options
