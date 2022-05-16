@@ -136,3 +136,9 @@ docker run -it -v ~/tmp/data/gtfs-out:/data -p 8765:8765 xaralis/dpmp-gtfs-trans
 ```
 
 After couple seconds, this will expose the schedule viewer web app on [http://localhost:8765](http://localhost:8765).
+
+
+## Credits
+
+I would like to give thanks to the author of [jrutil](https://gitlab.com/dvdkon/jrutil) David Koňařík. Without his work
+on the JDF -> GTFS conversion library, everything would be a lot harder.
